@@ -26,6 +26,10 @@ jobs:
     - name: Install dependencies
       run: uv pip install -r requirements.txt # 現在可以直接使用 uv 指令
 
+    - name: Install test dependencies
+      run: |
+        uv pip install pytest pytest-asyncio aiosqlite httpx
+
     - name: Run linter and formatter checks
       run: |
         uv pip install flake8 black
@@ -37,5 +41,4 @@ jobs:
 
     - name: Run unit tests
       run: |
-        uv pip install pytest
         PYTHONPATH=. pytest tests/
