@@ -19,7 +19,6 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.9' # 或您使用的版本
-        cache: 'uv' # 使用 uv 緩存依賴
 
     - name: Install dependencies
       run: uv pip install -r requirements.txt
