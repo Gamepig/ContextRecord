@@ -1,0 +1,39 @@
+name: Python CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9' # 或您使用的版本
+        cache: 'uv' # 使用 uv 緩存依賴
+
+    - name: Install dependencies
+      run: uv pip install -r requirements.txt
+
+    - name: Install linters and formatters
+      run: uv pip install flake8 black
+
+    - name: Run linter and formatter checks
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        black --check .
+
+    - name: Install pytest
+      run: uv pip install pytest
+
+    - name: Run unit tests
+      run: pytest 
