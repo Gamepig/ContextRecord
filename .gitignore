@@ -1,14 +1,66 @@
+# Python 虛擬環境
 .venv/
 venv/
+env/
+ENV/
+
+# Python 快取檔案
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 測試快取
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# 日誌檔案
 *.log
+logs/
+
+# 敏感資訊
 .env
+*.key
+*.pem
+*.crt
+*.password
+secrets/
 !.env.example
-/docker/data/
-# 移除Task目錄的排除，因為我們需要追蹤這些檔案
-# /Task/*.md
-.DS_Store
-# 添加SQLite資料庫檔案排除
+
+# 資料庫檔案
+*.db
+*.sqlite
+*.sqlite3
 /data/*.db
-*.db 
+
+# Docker 相關
+/docker/data/
+.docker/
+
+# 系統檔案
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDE 和編輯器檔案
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.vs/
+
+# 建置和分發
+dist/
+build/
+*.egg-info/
+
+# 移除Task目錄的排除，因為我們需要追蹤這些檔案
+# /Task/*.md 
