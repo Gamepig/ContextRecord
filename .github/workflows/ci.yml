@@ -14,6 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: main
 
     - name: Set up Python and uv
       uses: astral-sh/setup-uv@v6 # 使用官方提供的 setup-uv Action
