@@ -1,0 +1,9 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.log
+.env
+!.env.example
+/docker/data/
+/Task/*.md 
