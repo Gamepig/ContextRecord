@@ -6,4 +6,5 @@ __pycache__/
 .env
 !.env.example
 /docker/data/
-/Task/*.md 
+/Task/*.md
+.DS_Store 
