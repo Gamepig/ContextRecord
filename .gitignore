@@ -6,5 +6,9 @@ __pycache__/
 .env
 !.env.example
 /docker/data/
-/Task/*.md
-.DS_Store 
+# 移除Task目錄的排除，因為我們需要追蹤這些檔案
+# /Task/*.md
+.DS_Store
+# 添加SQLite資料庫檔案排除
+/data/*.db
+*.db 
