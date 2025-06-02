@@ -32,7 +32,10 @@ jobs:
         flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
         black .
 
+    - name: Debug Print test file content
+      run: cat tests/test_main.py
+
     - name: Run unit tests
       run: |
         uv pip install pytest
-        PYTHONPATH=. pytest
+        PYTHONPATH=. pytest tests/
