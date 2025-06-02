@@ -19,7 +19,7 @@ jobs:
       uses: astral-sh/setup-uv@v6 # 使用官方提供的 setup-uv Action
       with:
         python-version: '3.9' # 指定 Python 版本
-        # activate-environment: true # 如果需要自動啟動虛擬環境可以加上這行
+        activate-environment: true # 新增此行，自動啟動虛擬環境
 
     - name: Install dependencies
       run: uv pip install -r requirements.txt # 現在可以直接使用 uv 指令
