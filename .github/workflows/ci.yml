@@ -28,7 +28,7 @@ jobs:
 
     - name: Install test dependencies
       run: |
-        uv pip install pytest pytest-asyncio aiosqlite httpx
+        uv pip install pytest pytest-asyncio aiosqlite httpx python-dotenv
 
     - name: Run linter and formatter checks
       run: |
