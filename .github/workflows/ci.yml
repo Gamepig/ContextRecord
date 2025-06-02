@@ -20,19 +20,15 @@ jobs:
       with:
         python-version: '3.9' # 或您使用的版本
 
-    - name: Install dependencies
-      run: uv pip install -r requirements.txt
-
-    - name: Install linters and formatters
-      run: uv pip install flake8 black
+    - name: Install dependencies and tools
+      run: |
+        uv pip install -r requirements.txt
+        uv pip install flake8 black pytest
 
     - name: Run linter and formatter checks
       run: |
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         black --check .
 
-    - name: Install pytest
-      run: uv pip install pytest
-
     - name: Run unit tests
-      run: pytest 
+      run: pytest
