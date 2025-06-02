@@ -30,6 +30,11 @@ jobs:
       run: |
         uv pip install pytest pytest-asyncio aiosqlite httpx python-dotenv
 
+    - name: Setup test environment
+      run: |
+        echo "DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/testdb" > .env
+        cat .env
+
     - name: Run linter and formatter checks
       run: |
         uv pip install flake8 black
