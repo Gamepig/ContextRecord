@@ -6,9 +6,13 @@
 - **程式語言：** Python 3.9+ (建議使用與 CI 中設定的版本一致)
 - **Web 框架：** FastAPI (最新穩定版)
 - **非同步套件：** asyncio (Python 標準庫)
-- **資料庫：** PostgreSQL 13+ (與 Docker Compose 中設定的版本一致)
-- **資料庫驅動：** asyncpg (推薦用於異步操作) 或 psycopg2-binary
-- **ORM 工具：** SQLAlchemy 1.4+ 或 2.0+ (建議使用最新版本)
+- **資料庫：** 
+  - **開發/測試環境：** SQLite (使用 aiosqlite 提供異步支援)
+  - **生產環境 (未來)：** PostgreSQL 13+ (與 Docker Compose 中設定的版本一致)
+- **資料庫驅動：** 
+  - **SQLite：** aiosqlite
+  - **PostgreSQL：** asyncpg (推薦用於異步操作) 或 psycopg2-binary
+- **ORM 工具：** SQLAlchemy 2.0+ (建議使用最新版本)
 - **依賴管理：** UV (最新版本)
 - **容器化：** Docker Engine, Docker Compose
 - **版本控制：** Git
@@ -38,6 +42,14 @@
 - 向量搜尋功能 (`pgvector`) 需要資料庫伺服器安裝並啟用相應的擴充功能。
 - 初步版本的工具呼叫邏輯將是概念性的，實際整合外部工具需要進一步設計和實作。
 - 應注意處理大量對話數據時的性能問題，可能需要資料庫索引優化、查詢優化或數據歸檔策略。
+
+## 資料庫策略
+- **開發和測試階段：** 使用 SQLite 作為主要資料庫，通過 aiosqlite 提供異步支援，簡化設置並加速測試。
+- **生產環境（未來）：** 計劃遷移至 PostgreSQL，特別是當需要使用 pgvector 進行向量搜尋功能時。
+- **遷移策略：** 系統設計會確保將來從 SQLite 轉移到 PostgreSQL 時不需要大量代碼更改。主要通過以下方式實現：
+  - 使用 SQLAlchemy 的抽象層隔離具體資料庫實現
+  - 使用環境變數控制資料庫連接
+  - 使用遷移工具（如 Alembic）管理資料庫架構更改
 
 ## 背景運行 FastAPI 應用
 
