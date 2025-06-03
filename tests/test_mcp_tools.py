@@ -7,11 +7,12 @@ import asyncio
 import json
 import sys
 import os
+import pytest
 
-# 添加 src 目錄到路徑
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+# 添加根目錄到路徑，以便正確導入 src 模組
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from mcp_server import (
+from src.mcp_server import (
     server,
     init_database,
     handle_list_tools,
@@ -23,6 +24,7 @@ from mcp_server import (
 )
 
 
+@pytest.mark.asyncio
 async def test_tools():
     """測試所有工具功能"""
     print("🔧 測試 ContextRecord MCP Server 工具...")

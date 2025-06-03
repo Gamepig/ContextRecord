@@ -5,10 +5,12 @@
 
 import asyncio
 import json
+import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 
+@pytest.mark.asyncio
 async def test_mcp_server():
     """測試 MCP Server 的所有功能"""
 

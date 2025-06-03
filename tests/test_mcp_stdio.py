@@ -8,19 +8,23 @@ import json
 import subprocess
 import sys
 import os
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_mcp_stdio():
     """測試 MCP Server 的 STDIO 通信"""
     print("🔧 測試 ContextRecord MCP Server STDIO 通信...")
 
     # 啟動 MCP Server 進程
-    server_path = os.path.join(os.path.dirname(__file__), "src", "mcp_server.py")
-    python_path = os.path.join(os.path.dirname(__file__), ".venv", "bin", "python")
+    server_path = os.path.join(os.path.dirname(__file__), "..", "src", "mcp_server.py")
+    python_path = os.path.join(
+        os.path.dirname(__file__), "..", ".venv", "bin", "python"
+    )
 
     env = os.environ.copy()
     env["DATABASE_PATH"] = os.path.join(
-        os.path.dirname(__file__), "data", "conversations.db"
+        os.path.dirname(__file__), "..", "data", "conversations.db"
     )
 
     process = await asyncio.create_subprocess_exec(

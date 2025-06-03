@@ -7,11 +7,12 @@ import asyncio
 import json
 import sys
 import os
+import pytest
 
-# 添加 src 目錄到路徑
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+# 添加根目錄到路徑，以便正確導入 src 模組
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from mcp_server import (
+from src.mcp_server import (
     server,
     init_database,
     handle_call_tool,
@@ -20,6 +21,7 @@ from mcp_server import (
 )
 
 
+@pytest.mark.asyncio
 async def test_auto_recording():
     """測試自動記錄功能"""
     print("🤖 測試 ContextRecord 自動記錄功能...")
