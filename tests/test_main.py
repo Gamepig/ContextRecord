@@ -3,11 +3,15 @@ from fastapi.testclient import TestClient
 
 from src.main import app
 
+
 def test_read_root(client):
     """測試根路徑回應是否正確"""
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "Hello, World!"}
+    assert response.json() == {
+        "message": "Hello, World! - Development Mode with Hot Reload"
+    }
+
 
 # 以下是資料庫相關的API測試
 # 在實現相關路由後可以取消註解
@@ -28,4 +32,3 @@ def test_read_root(client):
 #     assert data["role"] == "user"
 #     assert data["content"] == "API測試訊息"
 #     assert data["extra_metadata"] == {"source": "api_test"}
- 

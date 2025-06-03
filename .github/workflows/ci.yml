@@ -18,13 +18,13 @@ jobs:
         ref: main
 
     - name: Set up Python and uv
-      uses: astral-sh/setup-uv@v6 # 使用官方提供的 setup-uv Action
+      uses: astral-sh/setup-uv@v6
       with:
-        python-version: '3.9' # 指定 Python 版本
-        activate-environment: true # 新增此行，自動啟動虛擬環境
+        python-version: '3.13'
+        activate-environment: true
 
     - name: Install dependencies
-      run: uv pip install -r requirements.txt # 現在可以直接使用 uv 指令
+      run: uv pip install -r requirements.txt
 
     - name: Install test dependencies
       run: |
@@ -32,18 +32,19 @@ jobs:
 
     - name: Setup test environment
       run: |
-        echo "DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/testdb" > .env
+        echo "DATABASE_URL=sqlite+aiosqlite:///data/app.db" > .env
+        mkdir -p data
         cat .env
 
     - name: Run linter and formatter checks
       run: |
         uv pip install flake8 black
         flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        black .
+        black . --check
 
     - name: Debug Print test file content
       run: cat tests/test_main.py
 
     - name: Run unit tests
       run: |
-        PYTHONPATH=. pytest tests/
+        PYTHONPATH=. pytest tests/ -v
