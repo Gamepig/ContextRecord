@@ -4,17 +4,19 @@
 """
 
 import asyncio
+import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 
-async def simple_test():
+@pytest.mark.asyncio
+async def test_simple_mcp():
     """簡單測試 MCP Server"""
 
     server_params = StdioServerParameters(
         command="python",
-        args=["src/mcp_server.py"],
-        env={"DATABASE_PATH": "data/test_conversations.db"},
+        args=["../src/mcp_server.py"],
+        env={"DATABASE_PATH": "../data/test_conversations.db"},
     )
 
     print("🚀 連接到 MCP Server...")
@@ -40,6 +42,11 @@ async def simple_test():
             print(f"搜尋結果: {search_result.content[0].text}")
 
             print("\n✅ 測試完成！")
+
+
+async def simple_test():
+    """保持原本的函數以便直接執行"""
+    await test_simple_mcp()
 
 
 if __name__ == "__main__":
