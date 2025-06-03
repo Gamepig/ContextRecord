@@ -79,7 +79,7 @@
 
 1. **克隆專案**
    ```bash
-   git clone https://github.com/yourusername/ContextRecord.git
+   git clone https://github.com/Gamepig/ContextRecord.git
    cd ContextRecord
    ```
 
@@ -271,14 +271,39 @@ get_conversation_stats()
 ### 運行測試
 
 ```bash
-# 功能測試
-python test_mcp_tools.py
+# 運行所有測試
+PYTHONPATH=. pytest tests/ -v
+
+# 運行特定測試類別
+PYTHONPATH=. pytest tests/test_conversations.py -v  # 對話功能測試
+PYTHONPATH=. pytest tests/test_mcp_tools.py -v      # MCP 工具測試
+PYTHONPATH=. pytest tests/test_auto_recording.py -v # 自動記錄功能測試
+
+# 運行基本功能測試
+PYTHONPATH=. pytest tests/test_main.py tests/test_server.py -v
+```
+
+### 專項測試
+
+```bash
+# MCP Server 完整測試
+cd tests && python test_mcp_server.py
 
 # STDIO 通信測試
-python test_mcp_stdio.py
+cd tests && python test_mcp_stdio.py
 
-# 自動記錄功能測試
-python test_auto_recording.py
+# 簡化測試
+cd tests && python simple_test.py
+```
+
+### 測試覆蓋率
+
+```bash
+# 安裝測試覆蓋率工具
+uv pip install pytest-cov
+
+# 運行測試並生成覆蓋率報告
+PYTHONPATH=. pytest tests/ --cov=src --cov-report=html
 ```
 
 ### 手動測試

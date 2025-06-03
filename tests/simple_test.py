@@ -15,8 +15,8 @@ async def test_simple_mcp():
 
     server_params = StdioServerParameters(
         command="python",
-        args=["../src/mcp_server.py"],
-        env={"DATABASE_PATH": "../data/test_conversations.db"},
+        args=["src/mcp_server.py"],
+        env={"DATABASE_PATH": "data/test_conversations.db"},
     )
 
     print("🚀 連接到 MCP Server...")

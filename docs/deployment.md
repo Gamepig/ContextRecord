@@ -14,7 +14,7 @@
 1. 克隆倉庫：
 
 ```bash
-git clone https://github.com/yourusername/ContextRecord.git
+git clone https://github.com/Gamepig/ContextRecord.git
 cd ContextRecord
 ```
 
@@ -35,7 +35,7 @@ http://localhost:8000
 1. 在伺服器上克隆倉庫：
 
 ```bash
-git clone https://github.com/yourusername/ContextRecord.git
+git clone https://github.com/Gamepig/ContextRecord.git
 cd ContextRecord
 ```
 
