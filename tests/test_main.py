@@ -28,3 +28,4 @@ def test_read_root(client):
 #     assert data["role"] == "user"
 #     assert data["content"] == "API測試訊息"
 #     assert data["extra_metadata"] == {"source": "api_test"}
+ 

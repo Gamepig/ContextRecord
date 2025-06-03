@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "contextrecord": {
+      "command": "/Users/gamepig/projects/MCP_Servers/ContextRecord/.venv/bin/python",
+      "args": ["/Users/gamepig/projects/MCP_Servers/ContextRecord/src/mcp_server.py"],
+      "env": {
+        "DATABASE_PATH": "/Users/gamepig/projects/MCP_Servers/ContextRecord/data/conversations.db"
+      }
+    }
+  }
+} 

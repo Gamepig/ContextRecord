@@ -2,4 +2,10 @@ FastAPI
 uvicorn
 asyncpg
 SQLAlchemy
-httpx 
+httpx
+python-dotenv
+aiosqlite
+greenlet
+mcp
+pydantic
+pydantic-settings 

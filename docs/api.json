@@ -1,0 +1,520 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ContextRecord API",
+    "description": "用於記錄和搜尋對話內容的API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/api",
+      "description": "開發環境"
+    }
+  ],
+  "paths": {
+    "/conversations/": {
+      "post": {
+        "summary": "創建新的對話記錄",
+        "description": "將對話內容保存到資料庫中",
+        "tags": ["conversations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationCreate"
+              },
+              "example": {
+                "role": "user",
+                "content": "這是一條測試對話",
+                "extra_metadata": {
+                  "source": "web",
+                  "timestamp": "2025-06-02T12:00:00Z"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功創建對話記錄",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationResponse"
+                },
+                "example": {
+                  "id": 1,
+                  "timestamp": "2025-06-02T12:00:00.123456",
+                  "role": "user",
+                  "content": "這是一條測試對話",
+                  "extra_metadata": {
+                    "source": "web",
+                    "timestamp": "2025-06-02T12:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服務器錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "無法創建對話記錄"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "獲取所有對話記錄",
+        "description": "分頁獲取所有對話記錄",
+        "tags": ["conversations"],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "跳過的記錄數",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "返回的最大記錄數",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功獲取對話列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationResponse"
+                  }
+                },
+                "example": [
+                  {
+                    "id": 1,
+                    "timestamp": "2025-06-02T12:00:00.123456",
+                    "role": "user",
+                    "content": "這是一條測試對話",
+                    "extra_metadata": {
+                      "source": "web",
+                      "timestamp": "2025-06-02T12:00:00Z"
+                    }
+                  },
+                  {
+                    "id": 2,
+                    "timestamp": "2025-06-02T12:01:00.123456",
+                    "role": "assistant",
+                    "content": "這是一條回覆",
+                    "extra_metadata": null
+                  }
+                ]
+              }
+            }
+          },
+          "500": {
+            "description": "服務器錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "獲取對話列表時發生錯誤"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/conversations/{conversation_id}": {
+      "get": {
+        "summary": "獲取單個對話記錄",
+        "description": "根據ID獲取對話記錄",
+        "tags": ["conversations"],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "description": "對話記錄ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功獲取對話記錄",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationResponse"
+                },
+                "example": {
+                  "id": 1,
+                  "timestamp": "2025-06-02T12:00:00.123456",
+                  "role": "user",
+                  "content": "這是一條測試對話",
+                  "extra_metadata": {
+                    "source": "web",
+                    "timestamp": "2025-06-02T12:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "對話記錄不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "對話記錄不存在"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服務器錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "獲取對話記錄時發生錯誤"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/": {
+      "get": {
+        "summary": "搜尋對話記錄",
+        "description": "根據關鍵字搜尋對話記錄",
+        "tags": ["search"],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "description": "搜尋關鍵字",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "跳過的記錄數",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "返回的最大記錄數",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功搜尋對話記錄",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationResponse"
+                  }
+                },
+                "example": [
+                  {
+                    "id": 1,
+                    "timestamp": "2025-06-02T12:00:00.123456",
+                    "role": "user",
+                    "content": "這是一條測試對話",
+                    "extra_metadata": {
+                      "source": "web",
+                      "timestamp": "2025-06-02T12:00:00Z"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "500": {
+            "description": "服務器錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "搜尋過程中發生錯誤"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/": {
+      "get": {
+        "summary": "訂閱實時事件",
+        "description": "建立SSE連接，客戶端可以通過此連接接收實時事件通知",
+        "tags": ["events"],
+        "responses": {
+          "200": {
+            "description": "成功建立SSE連接",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "data: {\"type\": \"connected\"}\n\ndata: {\"type\": \"new_conversation\", \"data\": {...}, \"timestamp\": \"2025-06-02T12:00:00Z\"}\n\n"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list": {
+      "get": {
+        "summary": "獲取可用工具列表",
+        "description": "返回所有已註冊的工具及其描述",
+        "tags": ["tools"],
+        "responses": {
+          "200": {
+            "description": "成功獲取工具列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ToolInfo"
+                  }
+                },
+                "example": [
+                  {
+                    "name": "echo_tool",
+                    "description": "一個回顯消息的工具"
+                  },
+                  {
+                    "name": "fetch_data",
+                    "description": "從外部API獲取數據的工具"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/call": {
+      "post": {
+        "summary": "呼叫工具",
+        "description": "執行指定的工具並返回結果",
+        "tags": ["tools"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolCall"
+              },
+              "example": {
+                "tool_name": "echo_tool",
+                "parameters": {
+                  "message": "Hello, World!"
+                },
+                "request_id": "abc-123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "工具執行成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResponse"
+                },
+                "example": {
+                  "request_id": "abc-123",
+                  "result": {
+                    "echo": "Hello, World!"
+                  },
+                  "error": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "工具不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "Tool 'unknown_tool' not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "工具執行錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "執行工具時發生錯誤"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ConversationCreate": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "對話角色，例如 'user' 或 'assistant'"
+          },
+          "content": {
+            "type": "string",
+            "description": "對話內容"
+          },
+          "extra_metadata": {
+            "type": "object",
+            "description": "額外的元數據，可以包含任意JSON物件",
+            "nullable": true
+          }
+        }
+      },
+      "ConversationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "對話記錄的唯一識別符"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "對話記錄的時間戳"
+          },
+          "role": {
+            "type": "string",
+            "description": "對話角色，例如 'user' 或 'assistant'"
+          },
+          "content": {
+            "type": "string",
+            "description": "對話內容"
+          },
+          "extra_metadata": {
+            "type": "object",
+            "description": "額外的元數據，可以包含任意JSON物件",
+            "nullable": true
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string",
+            "description": "錯誤詳情"
+          }
+        }
+      },
+      "ToolInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "工具的名稱"
+          },
+          "description": {
+            "type": "string",
+            "description": "工具的描述信息"
+          }
+        }
+      },
+      "ToolCall": {
+        "type": "object",
+        "required": ["tool_name", "parameters", "request_id"],
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "description": "要呼叫的工具名稱"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "傳遞給工具的參數"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "請求的唯一識別符，用於追踪和對應響應"
+          }
+        }
+      },
+      "ToolResponse": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "請求的唯一識別符，與請求中的request_id對應"
+          },
+          "result": {
+            "type": "object",
+            "description": "工具執行的結果",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "description": "如果工具執行出錯，此字段包含錯誤信息",
+            "nullable": true
+          }
+        }
+      }
+    }
+  }
+} 

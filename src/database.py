@@ -1,5 +1,6 @@
 from sqlalchemy import text
-from sqlalchemy.ext.declarative import declarative_base
+# 從 sqlalchemy.ext.declarative 導入 declarative_base 已棄用，改用新的 2.0 API
+from sqlalchemy.orm import declarative_base
 # from sqlalchemy.orm import sessionmaker # 移除同步的 sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker # 導入異步的引擎和 sessionmaker
 import os

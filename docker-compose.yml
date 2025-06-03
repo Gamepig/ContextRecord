@@ -1,0 +1,28 @@
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: context-record:latest
+    container_name: context-record
+    restart: always
+    ports:
+      - "8812:8811"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///data/app.db
+      - PORT=8811
+    volumes:
+      # 開發模式：掛載整個專案目錄以支援即時更新
+      - .:/app
+      # 掛載數據庫檔案以持久化資料
+      - ./data:/app/data
+      # 排除虛擬環境目錄避免衝突
+      - /app/.venv
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8811/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    # 開發模式：覆蓋啟動命令以支援熱重載
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8811", "--reload"] 

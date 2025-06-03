@@ -54,7 +54,18 @@
     *   確保測試覆蓋對話紀錄模型 (`Conversation`) 的關鍵欄位。
     *   使用pytest-asyncio進行異步測試。
 
-6.  [ ] 撰寫資料庫初始化腳本。
-    *   需要一個機制來創建資料表 (如果不存在)。對於小型專案和開發環境，可以在應用程式啟動時調用 `async with engine.begin() as conn: await conn.run_sync(Base.metadata.create_all)`。
-    *   對於生產環境或更複雜的系統，可以考慮使用Alembic等資料庫遷移工具來管理資料庫結構的變化。
-    *   為未來可能的PostgreSQL遷移做準備，考慮如何處理pgvector擴展的安裝和初始化：`CREATE EXTENSION IF NOT EXISTS vector;`（僅在使用PostgreSQL時需要）。 
+6.  [x] 撰寫資料庫初始化腳本。
+    *   已在 `src/main.py` 中實現，在應用程式啟動時自動創建資料表：
+        ```python
+        @asynccontextmanager
+        async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+            # 在應用程式啟動時創建資料表
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            yield
+            # 在應用程式關閉時清理資源 (如果需要)
+
+        app = FastAPI(lifespan=lifespan)
+        ```
+    *   對於生產環境或更複雜的系統，未來可以考慮使用Alembic等資料庫遷移工具來管理資料庫結構的變化。
+    *   為未來可能的PostgreSQL遷移做好準備，當需要向量搜尋功能時，可以添加pgvector擴展的安裝和初始化：`CREATE EXTENSION IF NOT EXISTS vector;`（僅在使用PostgreSQL時需要）。 
