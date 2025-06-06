@@ -1,0 +1,13 @@
+name: New mcpServer
+version: 0.0.1
+schema: v1
+mcpServers:
+  - name: BrowserToolsMCPDocker
+    command: docker
+    args:
+      - "exec"
+      - "-i"
+      - "browser-tools-mcp"
+      - "node"
+      - "/app/mcp/dist/mcp-server.js"
+    env: {}

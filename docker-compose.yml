@@ -23,6 +23,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 5s 
     # 開發模式：覆蓋啟動命令以支援熱重載
     command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8811", "--reload"] 

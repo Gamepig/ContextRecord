@@ -15,6 +15,68 @@
 
 ---
 
+## 🧠 專案心智圖
+
+```mermaid
+mindmap
+  root((ContextRecord MCP Server))
+    核心功能
+      自動記錄
+      強大搜尋
+      統計分析
+      會話管理
+    技術棧
+      Python 3.13+
+      UV
+      Cursor IDE
+      Docker
+      FastAPI
+      SQLAlchemy
+      Pydantic
+      MCP SDK
+    MCP 工具
+      對話記錄
+        create_conversation
+        delete_conversation
+      自動記錄
+        enable_auto_recording
+        disable_auto_recording
+        auto_record_conversation
+        get_auto_recording_status
+      搜尋與統計
+        search_conversations
+        get_conversation_stats
+        conversation_summary
+        extract_action_items
+    資源與提示
+      資源
+        conversations://recent
+      提示
+        analyze_conversation_pattern
+        summarize_conversations
+    部署
+      Docker
+        開發模式
+        生產部署
+    文件
+      README.md
+      API 文件 (docs/API.md)
+      技術文件 (docs/TECHNICAL.md)
+      開發指南 (docs/DEVELOPMENT.md)
+      貢獻指南 (CONTRIBUTING.md)
+      自動記錄指南 (docs/auto_recording_guide.md)
+      變更日誌 (CHANGELOG.md)
+      授權 (LICENSE)
+    測試
+      單元測試
+      整合測試
+      MCP 協議測試
+      自動記錄測試
+      測試覆蓋率
+```
+
+---
+
 ## 📋 目錄
 
 - [🎯 ContextRecord MCP Server](#-contextrecord-mcp-server)
@@ -78,10 +140,10 @@
 ### 安裝步驟
 
 1. **克隆專案**
-   ```bash
+```bash
    git clone https://github.com/Gamepig/ContextRecord.git
-   cd ContextRecord
-   ```
+cd ContextRecord
+```
 
 2. **建立虛擬環境**
    ```bash
@@ -202,6 +264,18 @@ ContextRecord 使用 SQLite 作為預設資料庫，支援以下配置：
 
 **參數**:
 - `conversation_id` (integer): 要刪除的對話 ID
+
+#### `conversation_summary`
+根據提供的對話 ID 生成對話摘要
+
+**參數**:
+- `conversation_ids` (array of integer): 要生成摘要的對話 ID 列表
+
+#### `extract_action_items`
+從指定的對話記錄中提取行動項目
+
+**參數**:
+- `conversation_ids` (array of integer): 要提取行動項目的對話 ID 列表
 
 ---
 

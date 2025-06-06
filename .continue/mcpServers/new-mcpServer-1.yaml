@@ -1,0 +1,16 @@
+name: New mcpServer
+version: 0.0.1
+schema: v1
+mcpServers:
+  - name: MCP_DOCKER
+    command: docker
+    args:
+      - "run"
+      - "-l"
+      - "mcp.client=cursor"
+      - "--rm"
+      - "-i"
+      - "alpine/socat"
+      - "STDIO"
+      - "TCP:host.docker.internal:8811"
+    env: {}

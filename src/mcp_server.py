@@ -13,11 +13,12 @@ from datetime import datetime, UTC
 import json
 import sqlite3
 import os
+from contextlib import asynccontextmanager
 
-from mcp.server.models import InitializationOptions
-import mcp.types as types
-from mcp.server import NotificationOptions, Server
-import mcp.server.stdio
+from fastapi import FastAPI, HTTPException, Body
+from mcp.server.fastmcp import FastMCP
+import uvicorn
+from pydantic import BaseModel
 
 # 設定日誌
 logging.basicConfig(level=logging.INFO)
@@ -117,610 +118,381 @@ def get_db_connection():
     return sqlite3.connect(DATABASE_PATH)
 
 
-# 創建 MCP 伺服器
-server = Server("contextrecord")
-
-
-@server.list_resources()
-async def handle_list_resources() -> list[types.Resource]:
-    """列出可用的資源"""
-    return [
-        types.Resource(
-            uri="conversations://recent",
-            name="Recent Conversations",
-            description="最近的對話記錄",
-            mimeType="application/json",
-        )
-    ]
-
-
-@server.read_resource()
-async def handle_read_resource(uri: types.AnyUrl) -> str:
-    """讀取資源內容"""
-    if str(uri) == "conversations://recent":
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                "SELECT id, role, content, timestamp, metadata FROM conversations ORDER BY timestamp DESC LIMIT 10"
-            )
-
-            rows = cursor.fetchall()
-            conn.close()
-
-            conversations = []
-            for row in rows:
-                conversations.append(
-                    {
-                        "id": row[0],
-                        "role": row[1],
-                        "content": row[2],
-                        "timestamp": row[3],
-                        "metadata": json.loads(row[4]) if row[4] else None,
-                    }
-                )
-
-            return json.dumps(conversations, ensure_ascii=False, indent=2)
-
-        except Exception as e:
-            logger.error(f"獲取最近對話資源時發生錯誤: {e}")
-            return f"錯誤: {str(e)}"
-
-    raise ValueError(f"未知的資源: {uri}")
-
-
-@server.list_tools()
-async def handle_list_tools() -> list[types.Tool]:
-    """列出可用的工具"""
-    return [
-        types.Tool(
-            name="create_conversation",
-            description="創建新的對話記錄",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "role": {
-                        "type": "string",
-                        "description": "對話角色 (user, assistant, system)",
-                    },
-                    "content": {"type": "string", "description": "對話內容"},
-                    "metadata": {
-                        "type": "string",
-                        "description": "額外的元數據 (JSON 字串)",
-                        "default": None,
-                    },
-                },
-                "required": ["role", "content"],
-            },
-        ),
-        types.Tool(
-            name="auto_record_conversation",
-            description="自動記錄對話內容（用於每次對話交互）",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "user_message": {"type": "string", "description": "用戶的訊息內容"},
-                    "assistant_response": {
-                        "type": "string",
-                        "description": "助理的回應內容",
-                    },
-                    "session_id": {
-                        "type": "string",
-                        "description": "對話會話 ID",
-                        "default": None,
-                    },
-                    "context": {
-                        "type": "string",
-                        "description": "對話上下文資訊 (JSON 字串)",
-                        "default": None,
-                    },
-                },
-                "required": ["user_message", "assistant_response"],
-            },
-        ),
-        types.Tool(
-            name="enable_auto_recording",
-            description="啟用自動記錄功能",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "session_id": {
-                        "type": "string",
-                        "description": "要啟用自動記錄的會話 ID",
-                        "default": "default",
-                    },
-                    "record_user": {
-                        "type": "boolean",
-                        "description": "是否記錄用戶訊息",
-                        "default": True,
-                    },
-                    "record_assistant": {
-                        "type": "boolean",
-                        "description": "是否記錄助理回應",
-                        "default": True,
-                    },
-                },
-                "required": [],
-            },
-        ),
-        types.Tool(
-            name="disable_auto_recording",
-            description="停用自動記錄功能",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "session_id": {
-                        "type": "string",
-                        "description": "要停用自動記錄的會話 ID",
-                        "default": "default",
-                    }
-                },
-                "required": [],
-            },
-        ),
-        types.Tool(
-            name="get_auto_recording_status",
-            description="獲取自動記錄狀態",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "session_id": {
-                        "type": "string",
-                        "description": "要查詢的會話 ID",
-                        "default": "default",
-                    }
-                },
-                "required": [],
-            },
-        ),
-        types.Tool(
-            name="search_conversations",
-            description="搜尋對話記錄",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "搜尋關鍵字"},
-                    "limit": {
-                        "type": "integer",
-                        "description": "返回結果數量限制",
-                        "default": 10,
-                    },
-                },
-                "required": ["query"],
-            },
-        ),
-        types.Tool(
-            name="get_conversation_stats",
-            description="獲取對話統計資訊",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            },
-        ),
-        types.Tool(
-            name="delete_conversation",
-            description="刪除指定的對話記錄",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "conversation_id": {
-                        "type": "integer",
-                        "description": "要刪除的對話 ID",
-                    }
-                },
-                "required": ["conversation_id"],
-            },
-        ),
-    ]
-
-
-@server.call_tool()
-async def handle_call_tool(
-    name: str, arguments: dict | None
-) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-    """處理工具調用"""
-
-    if name == "create_conversation":
-        role = arguments.get("role")
-        content = arguments.get("content")
-        metadata = arguments.get("metadata")
-
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            # 解析 metadata
-            metadata_dict = None
-            if metadata:
-                try:
-                    metadata_dict = json.loads(metadata)
-                except json.JSONDecodeError:
-                    metadata_dict = {"raw": metadata}
-
-            cursor.execute(
-                "INSERT INTO conversations (role, content, metadata) VALUES (?, ?, ?)",
-                (role, content, json.dumps(metadata_dict) if metadata_dict else None),
-            )
-
-            conversation_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
-
-            result = {
-                "success": True,
-                "conversation_id": conversation_id,
-                "message": f"成功創建對話記錄，ID: {conversation_id}",
-            }
-
-        except Exception as e:
-            logger.error(f"創建對話時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    elif name == "auto_record_conversation":
-        user_message = arguments.get("user_message")
-        assistant_response = arguments.get("assistant_response")
-        session_id = arguments.get("session_id", "default")
-        context = arguments.get("context")
-
-        try:
-            # 解析上下文
-            context_dict = None
-            if context:
-                try:
-                    context_dict = json.loads(context)
-                except json.JSONDecodeError:
-                    context_dict = {"raw": context}
-
-            # 記錄用戶訊息
-            user_recorded = await auto_record_message(
-                "user",
-                user_message,
-                session_id,
-                {**(context_dict or {}), "message_type": "user_input"},
-            )
-
-            # 記錄助理回應
-            assistant_recorded = await auto_record_message(
-                "assistant",
-                assistant_response,
-                session_id,
-                {**(context_dict or {}), "message_type": "assistant_response"},
-            )
-
-            result = {
-                "success": True,
-                "session_id": session_id,
-                "user_recorded": user_recorded,
-                "assistant_recorded": assistant_recorded,
-                "message": f"對話記錄完成 - 用戶: {'✓' if user_recorded else '✗'}, 助理: {'✓' if assistant_recorded else '✗'}",
-            }
-
-        except Exception as e:
-            logger.error(f"自動記錄對話時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    elif name == "enable_auto_recording":
-        session_id = arguments.get("session_id", "default")
-        record_user = arguments.get("record_user", True)
-        record_assistant = arguments.get("record_assistant", True)
-
-        try:
-            set_auto_recording_config(
-                session_id=session_id,
-                enabled=True,
-                record_user=record_user,
-                record_assistant=record_assistant,
-            )
-
-            result = {
-                "success": True,
-                "session_id": session_id,
-                "config": get_auto_recording_config(session_id),
-                "message": f"已啟用會話 '{session_id}' 的自動記錄功能",
-            }
-
-        except Exception as e:
-            logger.error(f"啟用自動記錄時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    elif name == "disable_auto_recording":
-        session_id = arguments.get("session_id", "default")
-
-        try:
-            set_auto_recording_config(session_id=session_id, enabled=False)
-
-            result = {
-                "success": True,
-                "session_id": session_id,
-                "message": f"已停用會話 '{session_id}' 的自動記錄功能",
-            }
-
-        except Exception as e:
-            logger.error(f"停用自動記錄時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    elif name == "get_auto_recording_status":
-        session_id = arguments.get("session_id", "default")
-
-        try:
-            config = get_auto_recording_config(session_id)
-
-            result = {
-                "success": True,
-                "session_id": session_id,
-                "config": config,
-                "status": "啟用" if config["enabled"] else "停用",
-            }
-
-        except Exception as e:
-            logger.error(f"獲取自動記錄狀態時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    elif name == "search_conversations":
-        query = arguments.get("query")
-        limit = arguments.get("limit", 10)
-
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT id, role, content, timestamp, metadata 
-                FROM conversations 
-                WHERE content LIKE ? 
-                ORDER BY timestamp DESC 
-                LIMIT ?
-                """,
-                (f"%{query}%", limit),
-            )
-
-            rows = cursor.fetchall()
-            conn.close()
-
-            conversations = []
-            for row in rows:
-                conversations.append(
-                    {
-                        "id": row[0],
-                        "role": row[1],
-                        "content": row[2],
-                        "timestamp": row[3],
-                        "metadata": json.loads(row[4]) if row[4] else None,
-                    }
-                )
-
-            result = {
-                "success": True,
-                "query": query,
-                "results": conversations,
-                "count": len(conversations),
-            }
-
-        except Exception as e:
-            logger.error(f"搜尋對話時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    elif name == "get_conversation_stats":
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            # 總對話數
-            cursor.execute("SELECT COUNT(*) FROM conversations")
-            total_count = cursor.fetchone()[0]
-
-            # 按角色統計
-            cursor.execute("SELECT role, COUNT(*) FROM conversations GROUP BY role")
-            role_stats = dict(cursor.fetchall())
-
-            # 最近一週的對話數
-            cursor.execute(
-                "SELECT COUNT(*) FROM conversations WHERE timestamp >= datetime('now', '-7 days')"
-            )
-            recent_count = cursor.fetchone()[0]
-
-            conn.close()
-
-            result = {
-                "success": True,
-                "total_conversations": total_count,
-                "role_distribution": role_stats,
-                "recent_week_count": recent_count,
-            }
-
-        except Exception as e:
-            logger.error(f"獲取統計資訊時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    elif name == "delete_conversation":
-        conversation_id = arguments.get("conversation_id")
-
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
-
-            if cursor.rowcount == 0:
-                conn.close()
-                result = {
-                    "success": False,
-                    "error": f"對話 ID {conversation_id} 不存在",
-                }
-            else:
-                conn.commit()
-                conn.close()
-                result = {
-                    "success": True,
-                    "message": f"成功刪除對話記錄 ID: {conversation_id}",
-                }
-
-        except Exception as e:
-            logger.error(f"刪除對話時發生錯誤: {e}")
-            result = {"success": False, "error": str(e)}
-
-        return [
-            types.TextContent(
-                type="text", text=json.dumps(result, ensure_ascii=False, indent=2)
-            )
-        ]
-
-    else:
-        raise ValueError(f"未知的工具: {name}")
-
-
-@server.list_prompts()
-async def handle_list_prompts() -> list[types.Prompt]:
-    """列出可用的提示"""
-    return [
-        types.Prompt(
-            name="analyze_conversation_pattern",
-            description="分析對話模式",
-            arguments=[],
-        ),
-        types.Prompt(
-            name="summarize_conversations",
-            description="總結對話記錄",
-            arguments=[
-                types.PromptArgument(
-                    name="style",
-                    description="總結風格 (brief 或 detailed)",
-                    required=False,
-                )
-            ],
-        ),
-    ]
-
-
-@server.get_prompt()
-async def handle_get_prompt(name: str, arguments: dict | None) -> types.GetPromptResult:
-    """處理提示請求"""
-
-    if name == "analyze_conversation_pattern":
-        return types.GetPromptResult(
-            description="分析對話模式的提示",
-            messages=[
-                types.PromptMessage(
-                    role="user",
-                    content=types.TextContent(
-                        type="text",
-                        text="""請分析提供的對話記錄，識別以下模式：
-
-1. 對話流程和結構
-2. 常見的問題類型
-3. 回應的品質和一致性
-4. 可能的改進建議
-
-請提供詳細的分析報告。""",
-                    ),
-                )
-            ],
-        )
-
-    elif name == "summarize_conversations":
-        style = arguments.get("style", "brief") if arguments else "brief"
-
-        if style == "detailed":
-            messages = [
-                types.PromptMessage(
-                    role="user",
-                    content=types.TextContent(
-                        type="text", text="請提供詳細的對話記錄總結，包括："
-                    ),
-                ),
-                types.PromptMessage(
-                    role="user",
-                    content=types.TextContent(
-                        type="text",
-                        text="- 主要討論主題\n- 關鍵決策點\n- 未解決的問題\n- 後續行動項目",
-                    ),
-                ),
-            ]
-        else:
-            messages = [
-                types.PromptMessage(
-                    role="user",
-                    content=types.TextContent(
-                        type="text",
-                        text="請提供簡潔的對話記錄總結，重點關注主要結論和行動項目。",
-                    ),
-                )
-            ]
-
-        return types.GetPromptResult(
-            description="總結對話記錄的提示",
-            messages=messages,
-        )
-
-    else:
-        raise ValueError(f"未知的提示: {name}")
-
-
-async def main():
-    """主函數"""
-    # 初始化資料庫
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 應用程式啟動時執行
     init_database()
     logger.info("ContextRecord MCP Server 正在啟動...")
+    yield
+    # 應用程式關閉時執行 (如果需要清理資源)
+    logger.info("ContextRecord MCP Server 正在關閉...")
 
-    # 運行伺服器
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            InitializationOptions(
-                server_name="contextrecord",
-                server_version="1.0.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(),
-                    experimental_capabilities={},
-                ),
-            ),
+
+# 創建 MCP 伺服器
+# server = Server("contextrecord") # 移除原始的 server 實例
+
+app = FastAPI(title="ContextRecord MCP Server", lifespan=lifespan)
+mcp_app_instance = FastMCP(
+    "contextrecord",
+    app=app,
+    description="一個用於記錄和搜尋對話內容的 MCP 伺服器。提供對話記錄、搜尋和管理功能。",
+)
+
+# 新增標準 FastAPI 端點來提供最近的對話記錄
+@app.get("/conversations/recent", operation_id="conversations_recent")
+async def get_recent_conversations() -> List[Dict[str, Any]]:
+    """獲取最近的對話記錄"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id, role, content, timestamp, metadata FROM conversations ORDER BY timestamp DESC LIMIT 10"
         )
 
+        rows = cursor.fetchall()
+        conn.close()
 
+        conversations = []
+        for row in rows:
+            conversations.append(
+                {
+                    "id": row[0],
+                    "role": row[1],
+                    "content": row[2],
+                    "timestamp": row[3],
+                    "metadata": json.loads(row[4]) if row[4] else None,
+                }
+            )
+
+        return conversations
+
+    except Exception as e:
+        logger.error(f"獲取最近對話資源時發生錯誤: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class CreateConversationRequest(BaseModel):
+    role: str
+    content: str
+    metadata: Optional[str] = None
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/create_conversation", operation_id="create_conversation")
+async def create_conversation(request: CreateConversationRequest) -> Dict[str, Any]:
+    """創建新的對話記錄"""
+    logger.info(f"調用工具: create_conversation, 參數: {request.role}, {request.content}, {request.metadata}")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 解析 metadata
+        metadata_dict = None
+        if request.metadata:
+            try:
+                metadata_dict = json.loads(request.metadata)
+            except json.JSONDecodeError:
+                metadata_dict = {"raw": request.metadata}
+
+        cursor.execute(
+            "INSERT INTO conversations (role, content, metadata) VALUES (?, ?, ?)",
+            (request.role, request.content, json.dumps(metadata_dict) if metadata_dict else None),
+        )
+
+        conversation_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        result = {
+            "success": True,
+            "conversation_id": conversation_id,
+            "message": f"成功創建對話記錄，ID: {conversation_id}",
+        }
+
+        return result
+
+    except Exception as e:
+        logger.error(f"創建對話時發生錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class AutoRecordConversationRequest(BaseModel):
+    user_message: str
+    assistant_response: str
+    session_id: Optional[str] = None
+    context: Optional[str] = None
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/auto_record_conversation", operation_id="auto_record_conversation")
+async def auto_record_conversation(request: AutoRecordConversationRequest) -> Dict[str, Any]:
+    """自動記錄對話內容（用於每次對話交互）"""
+    logger.info(f"調用工具: auto_record_conversation, 參數: {request.user_message}, {request.assistant_response}, {request.session_id}, {request.context}")
+    try:
+        # 解析上下文
+        context_dict = None
+        if request.context:
+            try:
+                context_dict = json.loads(request.context)
+            except json.JSONDecodeError:
+                context_dict = {"raw": request.context}
+
+        # 記錄用戶訊息
+        user_recorded = await auto_record_message(
+            "user",
+            request.user_message,
+            request.session_id,
+            metadata=context_dict,
+        )
+
+        # 記錄助理回應
+        assistant_recorded = await auto_record_message(
+            "assistant",
+            request.assistant_response,
+            request.session_id,
+            metadata=context_dict,
+        )
+
+        return {"success": user_recorded and assistant_recorded}
+
+    except Exception as e:
+        logger.error(f"自動記錄對話時發生錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class EnableAutoRecordingRequest(BaseModel):
+    session_id: Optional[str] = "default"
+    record_user: bool = True
+    record_assistant: bool = True
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/enable_auto_recording", operation_id="enable_auto_recording")
+async def enable_auto_recording(request: EnableAutoRecordingRequest) -> Dict[str, Any]:
+    """啟用自動記錄功能"""
+    logger.info(f"調用工具: enable_auto_recording, 參數: {request.session_id}, {request.record_user}, {request.record_assistant}")
+    try:
+        set_auto_recording_config(
+            request.session_id,
+            enabled=True,
+            record_user=request.record_user,
+            record_assistant=request.record_assistant,
+        )
+        return {"success": True, "message": "自動記錄已啟用"}
+    except Exception as e:
+        logger.error(f"啟用自動記錄時發生錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class DisableAutoRecordingRequest(BaseModel):
+    session_id: Optional[str] = None
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/disable_auto_recording", operation_id="disable_auto_recording")
+async def disable_auto_recording(request: DisableAutoRecordingRequest) -> Dict[str, Any]:
+    """禁用自動記錄功能"""
+    logger.info(f"調用工具: disable_auto_recording, 參數: {request.session_id}")
+    try:
+        set_auto_recording_config(request.session_id, enabled=False)
+        return {"success": True, "message": "自動記錄已禁用"}
+    except Exception as e:
+        logger.error(f"禁用自動記錄時發生錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class GetAutoRecordingStatusRequest(BaseModel):
+    session_id: Optional[str] = None
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/get_auto_recording_status", operation_id="get_auto_recording_status")
+async def get_auto_recording_status(request: GetAutoRecordingStatusRequest) -> Dict[str, Any]:
+    """獲取自動記錄狀態"""
+    logger.info(f"調用工具: get_auto_recording_status, 參數: {request.session_id}")
+    try:
+        config = get_auto_recording_config(request.session_id)
+        return {"success": True, "status": config}
+    except Exception as e:
+        logger.error(f"獲取自動記錄狀態時發生錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class SearchConversationsRequest(BaseModel):
+    query: str
+    limit: Optional[int] = None
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/search_conversations", operation_id="search_conversations")
+async def search_conversations(request: SearchConversationsRequest) -> List[Dict[str, Any]]:
+    """搜尋對話記錄"""
+    logger.info(f"調用工具: search_conversations, 參數: {request.query}, {request.limit}")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 使用 LIKE 進行簡單的內容模糊搜尋
+        sql_query = "SELECT id, role, content, timestamp, metadata FROM conversations WHERE content LIKE ? ORDER BY timestamp DESC"
+        params = [f"%{request.query}%"]
+
+        if request.limit:
+            sql_query += " LIMIT ?"
+            params.append(request.limit)
+
+        cursor.execute(sql_query, params)
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        conversations = []
+        for row in rows:
+            conversations.append(
+                {
+                    "id": row[0],
+                    "role": row[1],
+                    "content": row[2],
+                    "timestamp": row[3],
+                    "metadata": json.loads(row[4]) if row[4] else None,
+                }
+            )
+        return conversations
+
+    except Exception as e:
+        logger.error(f"搜尋對話記錄時發生錯誤: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/get_conversation_stats", operation_id="get_conversation_stats")
+async def get_conversation_stats() -> Dict[str, Any]:
+    """獲取對話統計信息"""
+    logger.info("調用工具: get_conversation_stats")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM conversations")
+        total_conversations = cursor.fetchone()[0]
+
+        cursor.execute("SELECT role, COUNT(*) FROM conversations GROUP BY role")
+        role_counts = dict(cursor.fetchall())
+
+        conn.close()
+
+        return {
+            "success": True,
+            "total_conversations": total_conversations,
+            "role_counts": role_counts,
+        }
+
+    except Exception as e:
+        logger.error(f"獲取對話統計信息時發生錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class DeleteConversationRequest(BaseModel):
+    conversation_id: int
+
+
+@mcp_app_instance.tool()
+@app.post("/tools/delete_conversation", operation_id="delete_conversation")
+async def delete_conversation(request: DeleteConversationRequest) -> Dict[str, Any]:
+    """刪除指定 ID 的對話記錄"""
+    logger.info(f"調用工具: delete_conversation, 參數: {request.conversation_id}")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM conversations WHERE id = ?", (request.conversation_id,))
+        conn.commit()
+
+        if cursor.rowcount > 0:
+            result = {"success": True, "message": f"成功刪除對話記錄 ID: {request.conversation_id}"}
+        else:
+            result = {"success": False, "message": f"未找到對話記錄 ID: {request.conversation_id}"}
+
+        conn.close()
+        return result
+
+    except Exception as e:
+        logger.error(f"刪除對話時發生錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class ConversationIdsRequest(BaseModel):
+    conversation_ids: List[int]
+
+
+@mcp_app_instance.tool()
+@app.post("/prompts/conversation_summary", operation_id="conversation_summary")
+async def conversation_summary(request: ConversationIdsRequest) -> str:
+    """根據提供的對話 ID 生成對話摘要"""
+    logger.info(f"調用工具: conversation_summary, 參數: {request.conversation_ids}")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 構建 SQL 查詢，用於根據 ID 列表獲取對話內容
+        placeholders = ", ".join("?" * len(request.conversation_ids))
+        query = f"SELECT role, content FROM conversations WHERE id IN ({placeholders}) ORDER BY timestamp ASC"
+        cursor.execute(query, tuple(request.conversation_ids))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return "未找到指定 ID 的對話記錄。"
+
+        summary_parts = []
+        for role, content in rows:
+            summary_parts.append(f"{role.capitalize()}: {content}")
+
+        # 這裡可以加入更複雜的摘要邏輯，例如調用 LLM
+        return "\n".join(summary_parts)
+
+    except Exception as e:
+        logger.error(f"生成對話摘要時發生錯誤: {e}")
+        return f"生成摘要失敗: {e}"
+
+
+@mcp_app_instance.tool()
+@app.post("/prompts/extract_action_items", operation_id="extract_action_items")
+async def extract_action_items(request: ConversationIdsRequest) -> str:
+    """從指定的對話記錄中提取行動項目"""
+    logger.info(f"調用工具: extract_action_items, 參數: {request.conversation_ids}")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        placeholders = ", ".join("?" * len(request.conversation_ids))
+        query = f"SELECT role, content FROM conversations WHERE id IN ({placeholders}) ORDER BY timestamp ASC"
+        cursor.execute(query, tuple(request.conversation_ids))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return "未找到指定 ID 的對話記錄。"
+
+        full_conversation_text = "\n".join([f"{role.capitalize()}: {content}" for role, content in rows])
+
+        # 在這裡可以添加調用 LLM 以提取行動項目的邏輯
+        # 這裡只是一個佔位符，實際應該調用一個能夠理解並提取行動項目的模型
+        if "行動" in full_conversation_text or "action item" in full_conversation_text.lower():
+            return f"以下是對話中的潛在行動項目 (需進一步分析):\n{full_conversation_text}"
+        else:
+            return "在提供的對話記錄中未發現明確的行動項目。"
+
+    except Exception as e:
+        logger.error(f"提取行動項目時發生錯誤: {e}")
+        return f"提取行動項目失敗: {e}"
+
+
+# 啟動 MCP 伺服器 (僅在直接運行時)
 if __name__ == "__main__":
-    asyncio.run(main())
+    init_database() # 確保在啟動時初始化資料庫
+    logger.info("直接啟動 ContextRecord MCP Server (STDIO 模式)...")
+    asyncio.run(mcp_app_instance.run()) # 使用 asyncio.run 包裹 mcp_app_instance.run()
+ 
